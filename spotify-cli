@@ -1,0 +1,75 @@
+#!/usr/bin/python
+
+import argparse
+import dbus
+
+def get_spotify_object():
+    bus = dbus.SessionBus()
+    proxy = bus.get_object('org.mpris.MediaPlayer2.spotify', '/org/mpris/MediaPlayer2')
+    controller = dbus.Interface(proxy, dbus_interface='org.mpris.MediaPlayer2.Player')
+    properties = dbus.Interface(proxy, dbus_interface='org.freedesktop.DBus.Properties')
+    return controller, properties
+
+def main():
+    parser = argparse.ArgumentParser(description='spotify-cli')
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument('--next', action='store_true')
+    actions.add_argument('--previous', action='store_true')
+    actions.add_argument('--toggle', action='store_true')
+    actions.add_argument('--play', action='store_true')
+    actions.add_argument('--stop', action='store_true')
+    actions.add_argument('--open', action='store')
+    actions.add_argument('--pause', action='store_true')
+    actions.add_argument('--status', action='store_true')
+    actions.add_argument('--meta', action='store_true')
+    parser.add_argument('--meta-format', action='store', default='{artist} - {title}')
+
+    args = parser.parse_args()
+
+    try:
+        ctl, prop = get_spotify_object()
+        prop_get = lambda name: prop.Get('org.mpris.MediaPlayer2.Player', name)
+        #prop_set = lambda name, value: prop.Set('org.mpris.MediaPlayer2.Player', name, value)
+        if args.open:
+            import re
+            matches = re.match(r"(?:https://)?open.spotify.com/(track|album)/([a-zA-z0-9]+).*", args.open)
+            if matches:
+                ctl.OpenUri("spotify:{type}:{id}".format(type=matches.group(1), id=matches.group(2)))
+        elif args.next:
+            ctl.Next()
+        elif args.previous:
+            ctl.Previous()
+        elif args.toggle:
+            ctl.PlayPause()
+        elif args.play:
+            ctl.Play()
+        elif args.pause:
+            ctl.Pause()
+        elif args.stop:
+            ctl.Stop()
+        elif args.status:
+            print(prop_get("PlaybackStatus"))
+        elif args.meta:
+            meta = prop_get('Metadata')
+            data = dict()
+            for k, v in meta.items():
+                k = k.replace("xesam:", "").replace("mpris:", "")
+                if isinstance(v, dbus.Array):
+                    data[k] = ",".join(v)
+                else:
+                    data[k] = str(v)
+
+            if args.meta_format == "":
+                for k, v in data.items():
+                    print("{}: {}".format(k,v))
+            else:
+                output = args.meta_format.format(**data)
+                print(output)
+
+    except dbus.exceptions.DBusException as e:
+        print(e)
+        SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
