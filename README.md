@@ -17,7 +17,7 @@ spotify-cli --open <URL>
 
 ### polybar
 you could also use it in your polybar like this
-```toml
+```ini
 [module/spotify]
 type = custom/script
 label = "%{A1:spotify-cli --prev:}  %{A}%{A1:spotify-cli --toggle:}  %{A}%{A1:spotify-cli --next:}  %{A} %output%"
